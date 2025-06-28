@@ -8,7 +8,7 @@ const app = express();
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://loan-manager-frontend-three.vercel.app'
+  'https://loan-manager-frontend-three.vercel.app',
   'https://loan-manager-frontend-git-main-sahil-das-projects-b72f7872.vercel.app'
 ];
 
@@ -25,7 +25,9 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/borrow', require('./routes/borrow'));
 app.use('/api/admin', require('./routes/admin'));
 
-app.listen(5000, () => console.log('Server running on 5000'));
+const PORT = process.env.PORT || 5000;
+
+app.listen(5000, () => console.log('Server running on port', PORT));
 
 // Optional root endpoint
 app.get('/', (req, res) => {
