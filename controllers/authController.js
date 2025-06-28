@@ -81,18 +81,22 @@ const loginUser = async (req, res) => {
     const token = generateToken(user._id, user.isAdmin);
     const refresh = generateRefreshToken(user._id, user.isAdmin);
     // Set tokens in cookies
+    const isProd = process.env.NODE_ENV === 'production';
+
     res.cookie('token', token, {
       httpOnly: true,
-      maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000, // 7 days or 1 hour
-      sameSite: 'Lax',
-      secure: false, // set to true in production with HTTPS
+      maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
+      sameSite: isProd ? 'None' : 'Lax',
+      secure: isProd, // must be true on Vercel/Render
     });
+
     res.cookie('refreshToken', refresh, {
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: 'Lax',
-      secure: false, // set to true in production with HTTPS
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: isProd ? 'None' : 'Lax',
+      secure: isProd,
     });
+
     res.status(200).json({
       user: {
         _id: user._id,
