@@ -5,7 +5,17 @@ const connectDB = require('./config');
 require('dotenv').config();
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://loan-manager-frontend-three.vercel.app'
+  'https://loan-manager-frontend-git-main-sahil-das-projects-b72f7872.vercel.app'
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 
