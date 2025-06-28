@@ -26,3 +26,17 @@ app.use('/api/borrow', require('./routes/borrow'));
 app.use('/api/admin', require('./routes/admin'));
 
 app.listen(5000, () => console.log('Server running on 5000'));
+
+// Optional root endpoint
+app.get('/', (req, res) => {
+  res.send('🟢 API is running and awake!');
+});
+
+// 🔄 Self-ping script (to prevent Render sleep)
+const SELF_URL = process.env.SELF_URL || `http://localhost:${PORT}`;
+
+setInterval(() => {
+  fetch(SELF_URL)
+    .then(res => console.log(`🔁 Self-ping status: ${res.status}`))
+    .catch(err => console.error('❌ Self-ping failed:', err.message));
+}, 5 * 60 * 1000); // every 5 minutes
