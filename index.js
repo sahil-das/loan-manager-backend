@@ -8,8 +8,9 @@ const app = express();
 
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://loan-manager-frontend-three.vercel.app',
-  'https://loan-manager-frontend-git-main-sahil-das-projects-b72f7872.vercel.app'
+  'https://borrowbook-eight.vercel.app',
+  'https://borrowbook-git-main-sahil-das-projects-b72f7872.vercel.app',
+  'https://borrowbook-ce50odydk-sahil-das-projects-b72f7872.vercel.app'
 ];
 
 app.use(cors({
