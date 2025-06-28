@@ -1,52 +1,140 @@
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const bcrypt = require('bcrypt');
 
-const ACCESS_SECRET = process.env.ACCESS_SECRET;
-const REFRESH_SECRET = process.env.REFRESH_SECRET;
-
-exports.register = async (req, res) => {
-  const { name, email, password } = req.body;
-  const existing = await User.findOne({ email });
-  if (existing) return res.status(400).json({ message: 'User exists' });
-
-  const hash = await bcrypt.hash(password, 10);
-  const user = await User.create({ name, email, password: hash });
-  res.status(201).json({ message: 'Registered' });
-};
-
-exports.login = async (req, res) => {
-  const { email, password } = req.body;
-  const user = await User.findOne({ email });
-  if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ message: 'Invalid' });
-
-  const accessToken = jwt.sign({ id: user._id }, ACCESS_SECRET, { expiresIn: '15m' });
-  const refreshToken = jwt.sign({ id: user._id }, REFRESH_SECRET, { expiresIn: '7d' });
-
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    sameSite: 'Strict',
-    secure: false,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+// Utils
+const generateToken = (userId, isAdmin) => {
+  return jwt.sign({ userId, isAdmin }, process.env.JWT_SECRET, {
+    expiresIn: '1h',
   });
-
-  res.json({ token: accessToken });
 };
 
-exports.refreshToken = (req, res) => {
-  const token = req.cookies.refreshToken;
-  if (!token) return res.sendStatus(401);
+const generateRefreshToken = (userId, isAdmin) => {
+  return jwt.sign({ userId, isAdmin }, process.env.REFRESH_SECRET, {
+    expiresIn: '7d',
+  });
+};
 
+const refreshToken = async (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) {
+    return res.status(401).json({ message: "Refresh token missing" });
+  }
   try {
-    const data = jwt.verify(token, REFRESH_SECRET);
-    const newAccess = jwt.sign({ id: data.id }, ACCESS_SECRET, { expiresIn: '15m' });
-    res.json({ token: newAccess });
-  } catch {
-    res.sendStatus(403);
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ message: "Invalid refresh token" });
+    }
+    const newAccessToken = generateToken(user._id, user.isAdmin);
+    res.status(200).json({ accessToken: newAccessToken, user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      isAdmin: user.isAdmin
+    }});
+  } catch (error) {
+    return res.status(403).json({ message: "Invalid or expired refresh token" });
   }
 };
 
-exports.logout = (req, res) => {
-  res.clearCookie('refreshToken');
-  res.json({ message: 'Logged out' });
+const registerUser = async (req, res) => {
+  try {
+    const { name, email, phone, password } = req.body;
+    // Validate fields
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All required fields must be filled" });
+    }
+    // Validate email format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    // Save user
+    const user = new User({ name, email, phone, password: hashedPassword });
+    await user.save();
+    res.status(201).json({ message: "User registered successfully" });
+  } catch (error) {
+    console.error("Register Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const loginUser = async (req, res) => {
+  try {
+    const { email, password, rememberMe } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password required" });
+    }
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ message: "Invalid credentials" });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
+    const token = generateToken(user._id, user.isAdmin);
+    const refresh = generateRefreshToken(user._id, user.isAdmin);
+    // Set tokens in cookies
+    res.cookie('token', token, {
+      httpOnly: true,
+      maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000, // 7 days or 1 hour
+      sameSite: 'Lax',
+      secure: false, // set to true in production with HTTPS
+    });
+    res.cookie('refreshToken', refresh, {
+      httpOnly: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: 'Lax',
+      secure: false, // set to true in production with HTTPS
+    });
+    res.status(200).json({
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        isAdmin: user.isAdmin
+      },
+      token,
+      refreshToken: refresh,
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const logoutUser = async (req, res) => {
+  try {
+    res.clearCookie('token');
+    res.clearCookie('refreshToken');
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('-password');
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error("Profile Fetch Error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+  logoutUser,
+  getProfile,
+  refreshToken
 };

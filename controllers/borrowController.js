@@ -2,12 +2,15 @@ const Borrow = require('../models/Borrow');
 
 exports.addEntry = async (req, res) => {
   const { amount, type, note } = req.body;
-  const entry = await Borrow.create({ userId: req.user.id, amount, type, note });
+  console.log('[addEntry] userId:', req.user.userId, 'amount:', amount, 'type:', type, 'note:', note);
+  const entry = await Borrow.create({ userId: req.user.userId, amount, type, note });
   res.json(entry);
 };
 
 exports.getSummary = async (req, res) => {
-  const data = await Borrow.find({ userId: req.user.id });
+  console.log('[getSummary] userId:', req.user.userId);
+  const data = await Borrow.find({ userId: req.user.userId });
+  console.log('[getSummary] found entries:', data);
   const totalBorrowed = data.filter(e => e.type === 'borrowed').reduce((a, b) => a + b.amount, 0);
   const totalRepaid = data.filter(e => e.type === 'repaid').reduce((a, b) => a + b.amount, 0);
   const outstanding = totalBorrowed - totalRepaid;
@@ -15,11 +18,19 @@ exports.getSummary = async (req, res) => {
 };
 
 exports.editEntry = async (req, res) => {
-  const updated = await Borrow.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(updated);
+  console.log('[editEntry] userId:', req.user.userId, 'entryId:', req.params.id, 'update:', req.body);
+  const entry = await Borrow.findOneAndUpdate(
+    { _id: req.params.id, userId: req.user.userId },
+    req.body,
+    { new: true }
+  );
+  if (!entry) return res.status(403).json({ message: "Forbidden" });
+  res.json(entry);
 };
 
 exports.deleteEntry = async (req, res) => {
-  await Borrow.findByIdAndDelete(req.params.id);
+  console.log('[deleteEntry] userId:', req.user.userId, 'entryId:', req.params.id);
+  const entry = await Borrow.findOneAndDelete({ _id: req.params.id, userId: req.user.userId });
+  if (!entry) return res.status(403).json({ message: "Forbidden" });
   res.json({ message: 'Deleted' });
 };

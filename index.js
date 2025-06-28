@@ -13,5 +13,6 @@ connectDB();
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/borrow', require('./routes/borrow'));
+app.use('/api/admin', require('./routes/admin'));
 
 app.listen(5000, () => console.log('Server running on 5000'));
