@@ -84,7 +84,7 @@ const loginUser = async (req, res) => {
     const isProd = process.env.NODE_ENV === 'production';
 
     //const isProd = true;
-    sonsole.log(isProd);
+    console.log(isProd);
 
     res.cookie('token', token, {
       httpOnly: true,
