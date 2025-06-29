@@ -81,8 +81,10 @@ const loginUser = async (req, res) => {
     const token = generateToken(user._id, user.isAdmin);
     const refresh = generateRefreshToken(user._id, user.isAdmin);
     // Set tokens in cookies
-    const isProd = process.env.NODE_ENV === 'production';
+    //const isProd = process.env.NODE_ENV === 'production';
 
+    const isProd = true;
+    
     res.cookie('token', token, {
       httpOnly: true,
       maxAge: rememberMe ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000,
