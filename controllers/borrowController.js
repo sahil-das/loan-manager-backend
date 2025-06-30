@@ -1,7 +1,7 @@
 const Borrow = require('../models/Borrow');
 
 exports.addEntry = async (req, res) => {
-  const { amount, type, name, description } = req.body;
+  const { amount, type, name, description, date } = req.body;
 
   const entry = await Borrow.create({
     userId: req.user.userId,
@@ -9,6 +9,7 @@ exports.addEntry = async (req, res) => {
     type,
     name,
     description,
+    date, // ✅ Add this line
   });
 
   res.json(entry);
